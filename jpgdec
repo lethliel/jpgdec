@@ -177,7 +177,7 @@ while (1) {
     die("only 8-bit color depth supported\n") unless $bits == 8; 
     my ($cid, $hv, $tq);
     while ($comp_counter < $ncomp) {
-	    ($cid, $hv, $tq) = unpack("CCC", $pkt);
+	    ($cid, $hv, $tq) = unpack("CCC", substr($pkt, 0, 3 , ''));
 	    $comp = {
                 'cid' => $cid,
                 'h' => $hv >> 4,
@@ -186,7 +186,6 @@ while (1) {
     	    };	
 	    push @sof0_comp, $comp;
     	    die("illegal quant table\n") if $tq > 3;
-            die("unknown quant table\n") if $tq != 0;
             die("illegal h/v\n") if $comp->{'h'} > 3 || $comp->{'v'} > 3;
 	    $comp_counter += 1;
     }
@@ -247,16 +246,11 @@ die("not sequential baseline jpg\n") unless $ss == 0 && $se == 63 && $ahal == 0;
 
 
 #modified by mstrigl: Loop through scan_arr and start decode or every component. 
-my @image;      # output image, unclamped
-my $image_hash = {};
+my @image_z;      # output image, unclamped
+my @image_cb;
+my @image_cr;
 my $mcusx = int(($width + 7) / 8);
 my $mcusy = int(($height + 7) / 8);
-
-foreach my $scancomp (@scan_arr) {
-	#TODO: print statements for debug use. Must be removed. 
-	#print "Workin on Scancomp:\n";
-	#print "------------------------------\n";
-	#print Dumper($scancomp);
 	# convert data into bitstream, undo byte stuffing
 	my $jpgff = pack('CC', 255, 0);
 	$jpg =~ s/$jpgff/substr($jpgff, 0, 1)/eg;
@@ -266,21 +260,20 @@ foreach my $scancomp (@scan_arr) {
 	my $nextline = $mcusx * 8;	# $nextline >= $width
 	for my $my (0 .. ($mcusy - 1)) {
   		for my $mx (0 .. ($mcusx - 1)) {
-    			my $dct1 = [ decode_scancomp($jpg, $scancomp) ];
-    			set_image(\@image, $mx * 8, $my * 8, $nextline, $dct1);
-  		}
-	}
-	$image_hash->{$scancomp->{cid}} = [@image];
-	last;
-}
-#end modified
-
+			foreach my $scancomp(@scan_arr) {
+    				my $dct1 = [ decode_scancomp($jpg, $scancomp) ];
+				if ($scancomp->{"cid"} == 1) { set_image(\@image_z, $mx * 8, $my * 8, $nextline, $dct1); };
+				if ($scancomp->{"cid"} == 2) { set_image(\@image_cb, $mx * 8, $my * 8, $nextline, $dct1); };
+				if ($scancomp->{"cid"} == 3) { set_image(\@image_cr, $mx * 8, $my * 8, $nextline, $dct1); };
+			}
+		}
+  	}
 
 # output the image clamped to [0..255]
 printf "P2\n%d %d\n255\n", $width, $height;
 for my $y (0..($height-1)) {
   for my $x (0..($width-1)) {
-    my $v = int($image[$y * $mcusx * 8 + $x]);
+    my $v = int($image_z[$y * $mcusx * 8 + $x]);
     $v = 0 if $v < 0;
     $v = 255 if $v > 255;
     print "$v\n";
