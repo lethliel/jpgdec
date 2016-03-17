@@ -159,16 +159,12 @@ while (1) {
     my $pq = unpack("C", substr($pkt, 0, 1, ''));
     die("bad quant table length\n") unless length($pkt) == 64;
     # added my mstrigl: loop to get all quantisation tables. Write them into $quant_hash and prepare vor 8x8 idct
-    while ($qt_counter <= $pq){
-    	@quant = unpack("C64", $pkt);
-	$quant_hash->{$qt_counter} = [ @quant ]; 
-    	# prepare table for idct
-    	for my $i (0 .. 7) {
-      		for my $j (0 .. 7) {
-        		$quant_hash->{$qt_counter}[$zig[$i * 8 + $j]] *= $aaidct[$i] * $aaidct[$j];
-      		}
-    	}
-	$qt_counter += 1; #and next one...
+    @quant = unpack("C64", $pkt);
+    # prepare table for idct
+    for my $i (0 .. 7) {
+   	for my $j (0 .. 7) {
+       		$quant[$zig[$i * 8 + $j]] *= $aaidct[$i] * $aaidct[$j];
+      	}
     }
   } elsif ($type == 0xc0) {	# SOF0
     my $bits;
@@ -269,15 +265,37 @@ my $mcusy = int(($height + 7) / 8);
 		}
   	}
 
-# output the image clamped to [0..255]
-printf "P2\n%d %d\n255\n", $width, $height;
-for my $y (0..($height-1)) {
-  for my $x (0..($width-1)) {
-    my $v = int($image_z[$y * $mcusx * 8 + $x]);
-    $v = 0 if $v < 0;
-    $v = 255 if $v > 255;
-    print "$v\n";
-  }
+
+if ($ncomp > 1) {
+	my $max_count = scalar @image_z;
+	my $n_count = 0;
+	printf "P3\n%d %d\n255\n", $width, $height;
+
+	while ($n_count <= $max_count-1) {
+        	my $r =  int($image_z[$n_count] + 1.402 * ($image_cr[$n_count] - 128));
+        	$r = 0 if $r < 0;
+        	$r = 255 if $r > 255;
+        	my $g = int($image_z[$n_count] - 0.34414 * ($image_cb[$n_count] - 128) - 0.71414 * ($image_cr[$n_count] - 128));
+        	$g = 0 if $g < 0;
+        	$g = 255 if $g > 255;
+        	my $b = int($image_z[$n_count] + 1.772 * ($image_cb[$n_count] - 128));
+        	$b = 0 if $b < 0;
+        	$b = 255 if $b > 255;
+        	$n_count += 1;
+
+		print $r . " " . $g . " " . $b . "\n";
+	}
+} else {
+	# output the image clamped to [0..255]
+	printf "P2\n%d %d\n255\n", $width, $height;
+	for my $y (0..($height-1)) {
+  		for my $x (0..($width-1)) {
+    			my $v = int($image_z[$y * $mcusx * 8 + $x]);
+    			$v = 0 if $v < 0;
+    			$v = 255 if $v > 255;
+    			print "$v\n";
+  		}
+	}
 }
 
 # should check EOI marker, but...
