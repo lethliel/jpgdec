@@ -259,7 +259,7 @@ my $mcusy = int(($height + 7) / 8);
   		for my $mx (0 .. ($mcusx - 1)) {
 			foreach my $scancomp (@scan_arr) {
     				my $dct1 = [ decode_scancomp($jpg, $scancomp) ];
-				if ($scancomp->{"cid"} == 1) { set_image(\@image_z, $mx * 8, $my * 8, $nextline, $dct1); }
+				if ($scancomp->{"cid"} == 1) { set_image(\@image_z, $mx * 8, $my * 8, $nextline, $dct1); };
 				if ($scancomp->{"cid"} == 2) { set_image(\@image_cb, $mx * 8, $my * 8, $nextline, $dct1); };
 				if ($scancomp->{"cid"} == 3) { set_image(\@image_cr, $mx * 8, $my * 8, $nextline, $dct1); };
 			}
