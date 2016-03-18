@@ -268,23 +268,25 @@ my $mcusy = int(($height + 7) / 8);
 
 
 if ($ncomp > 1) {
-	my $max_count = scalar @image_z;
-	my $n_count = 0;
 	printf "P3\n%d %d\n255\n", $width, $height;
 
-	while ($n_count <= $max_count-1) {
-        	my $r =  int($image_z[$n_count] + 1.402 * ($image_cr[$n_count] - 128));
-        	$r = 0 if $r < 0;
-        	$r = 255 if $r > 255;
-        	my $g = int($image_z[$n_count] - 0.34414 * ($image_cb[$n_count] - 128) - 0.71414 * ($image_cr[$n_count] - 128));
-        	$g = 0 if $g < 0;
-        	$g = 255 if $g > 255;
-        	my $b = int($image_z[$n_count] + 1.772 * ($image_cb[$n_count] - 128));
-        	$b = 0 if $b < 0;
-        	$b = 255 if $b > 255;
-        	$n_count += 1;
+	for my $y (0..($height-1)) {
+               	for my $x (0..($width-1)) {
+		        my $z = int($image_z[$y * $mcusx * 8 + $x]);	
+			my $cb = int($image_cb[$y * $mcusx * 8 + $x]);
+			my $cr = int($image_cb[$y * $mcusx * 8 + $x]);
+ 	     		my $r =  int($z + 1.402 * ($cb - 128));
+       			$r = 0 if $r < 0;
+       			$r = 255 if $r > 255;
+       			my $g = int($z - 0.34414 * ($cb - 128) - 0.71414 * ($cr - 128));
+       			$g = 0 if $g < 0;
+       			$g = 255 if $g > 255;
+       			my $b = int($z + 1.772 * ($cb - 128));
+       			$b = 0 if $b < 0;
+       			$b = 255 if $b > 255;
 
-		print $r . " " . $g . " " . $b . "\n";
+			print $r . " " . $g . " " . $b . "\n";
+		}
 	}
 } else {
 	# output the image clamped to [0..255]
