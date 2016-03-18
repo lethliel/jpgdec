@@ -218,6 +218,7 @@ my ($ns) = unpack("C", substr($jpg, 0, 1, ''));
 #For a greyscale image we have one elemnt in the array. For a colour image we should have three. 
 my $comp_count = 0;
 my $scan_comp_hash;
+my @scan_arr;
 while ($comp_count < $ns) {
 	my ($cid, $dcac) = unpack("CC", substr($jpg, 0, 2, ''));
 	my $dctc = $dcac >> 4;
@@ -232,7 +233,7 @@ while ($comp_count < $ns) {
 		'quant' => \@tmp_arr,
   		'dc' => 0,	# dc component...
 	};
-	$scan_comp_hash->{$comp_count}=$scancomp;
+	push @scan_arr, $scancomp;
 	$comp_count++;
 }
 
@@ -256,11 +257,11 @@ my $mcusy = int(($height + 7) / 8);
 	my $nextline = $mcusx * 8;	# $nextline >= $width
 	for my $my (0 .. ($mcusy - 1)) {
   		for my $mx (0 .. ($mcusx - 1)) {
-			foreach my $key ( keys(%$scan_comp_hash)) {
-    				my $dct1 = [ decode_scancomp($jpg, $scan_comp_hash->{$key}) ];
-				if ($scan_comp_hash->{$key}->{"cid"} == 1) { set_image(\@image_z, $mx * 8, $my * 8, $nextline, $dct1); }
-				if ($scan_comp_hash->{$key}->{"cid"} == 2) { set_image(\@image_cb, $mx * 8, $my * 8, $nextline, $dct1); };
-				if ($scan_comp_hash->{$key}->{"cid"} == 3) { set_image(\@image_cr, $mx * 8, $my * 8, $nextline, $dct1); };
+			foreach my $scancomp (@scan_arr) {
+    				my $dct1 = [ decode_scancomp($jpg, $scancomp) ];
+				if ($scancomp->{"cid"} == 1) { set_image(\@image_z, $mx * 8, $my * 8, $nextline, $dct1); }
+				if ($scancomp->{"cid"} == 2) { set_image(\@image_cb, $mx * 8, $my * 8, $nextline, $dct1); };
+				if ($scancomp->{"cid"} == 3) { set_image(\@image_cr, $mx * 8, $my * 8, $nextline, $dct1); };
 			}
   		}
 	}
