@@ -274,8 +274,8 @@ if ($ncomp > 1) {
                	for my $x (0..($width-1)) {
 		        my $z = int($image_z[$y * $mcusx * 8 + $x]);	
 			my $cb = int($image_cb[$y * $mcusx * 8 + $x]);
-			my $cr = int($image_cb[$y * $mcusx * 8 + $x]);
- 	     		my $r =  int($z + 1.402 * ($cb - 128));
+			my $cr = int($image_cr[$y * $mcusx * 8 + $x]);
+ 	     		my $r =  int($z + 1.402 * ($cr - 128));
        			$r = 0 if $r < 0;
        			$r = 255 if $r > 255;
        			my $g = int($z - 0.34414 * ($cb - 128) - 0.71414 * ($cr - 128));
