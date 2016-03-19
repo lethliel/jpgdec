@@ -248,7 +248,7 @@ die("not sequential baseline jpg\n") unless $ss == 0 && $se == 63 && $ahal == 0;
 my $mcu_size_v = $max_v * 8;
 my $mcu_size_h = $max_h * 8;
 
-#modified by mstrigl: Loop through scan_arr and start decode or every component. 
+#modified by mstrigl: Loop through scan_arr and start decode or every component.
 my @image_z;      # output image, unclamped
 my @image_z1;      # output image, unclamped
 my @image_z2;      # output image, unclamped
@@ -263,14 +263,20 @@ my $mcusy = int(($height + $mcu_size_h - 1 ) / $mcu_size_h);
 	$jpg = unpack('B*', $jpg);
 
 	# fill decoded image data
-	my $nextline = $mcusx * 8;	# $nextline >= $width
+	my $nextline = $mcusx * $mcu_size_v; # $nextline >= $width
 	for my $my (0 .. ($mcusy - 1)) {
   		for my $mx (0 .. ($mcusx - 1)) {
 			foreach my $scancomp (@scan_arr) {
-    				my $dct1 = [ decode_scancomp($jpg, $scancomp) ];
 					for my $h_comp (1 .. $scancomp->{'h'}) {
 						for my $v_comp (1 .. $scancomp->{'v'}) {
-							if ($scancomp->{"cid"} == 1) { set_image(\@image_z, $mx * 8, $my * 8, $nextline, $dct1); };
+    							my $dct1 = [ decode_scancomp($jpg, $scancomp) ];
+							if ($scancomp->{"cid"} == 1) {
+								set_image(\@image_z, $mx * 8, $my * 8, $nextline, $dct1) if ($h_comp == 1 && $v_comp == 1);
+								set_image(\@image_z1, $mx * 8, $my * 8, $nextline, $dct1) if ($h_comp == 2 && $v_comp == 1);
+								set_image(\@image_z2, $mx * 8, $my * 8, $nextline, $dct1) if ($h_comp == 1 && $v_comp == 2);
+								set_image(\@image_z3, $mx * 8, $my * 8, $nextline, $dct1) if ($h_comp == 2 && $v_comp == 2);
+								 
+							}
 							if ($scancomp->{"cid"} == 2) { set_image(\@image_cb, $mx * 8, $my * 8, $nextline, $dct1); };
 							if ($scancomp->{"cid"} == 3) { set_image(\@image_cr, $mx * 8, $my * 8, $nextline, $dct1); };
 						}
@@ -278,7 +284,6 @@ my $mcusy = int(($height + $mcu_size_h - 1 ) / $mcu_size_h);
 			}
   		}
 	}
-
 
 if ($ncomp > 1) {
 	printf "P3\n%d %d\n255\n", $width, $height;
