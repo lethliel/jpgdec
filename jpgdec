@@ -1,7 +1,8 @@
 #!/usr/bin/perl -w
 
 use strict;
-use Data::Dumper;
+# Data::Dumper only for debugging purpose
+# use Data::Dumper; 
 
 # pure perl jpeg to pnm decoder
 #
@@ -165,6 +166,7 @@ while (1) {
        		$quant[$zig[$i * 8 + $j]] *= $aaidct[$i] * $aaidct[$j];
       	}
     }
+    #write qunat table into qant_hash.
     $quant_hash->{$pq} = [ @quant ];
 
   } elsif ($type == 0xc0) {	# SOF0
@@ -173,6 +175,7 @@ while (1) {
     ($bits, $height, $width, $ncomp) = unpack("CnnC", substr($pkt, 0, 6, ''));
     die("only 8-bit color depth supported\n") unless $bits == 8; 
     my ($cid, $hv, $tq);
+    # get CID / hv and tq table for each component. 
     while ($comp_counter < $ncomp) {
 	    ($cid, $hv, $tq) = unpack("CCC", substr($pkt, 0, 3 , ''));
 	    $comp = {
@@ -181,8 +184,10 @@ while (1) {
                 'v' => $hv & 15,
                 'tq' => $tq,
     	    };
+	    # set $max_v and $max_h 
 	    $max_v = $comp->{'v'} if $max_v < $comp->{'v'};	
-	    $max_h = $comp->{'h'} if $max_h < $comp->{'h'};	
+	    $max_h = $comp->{'h'} if $max_h < $comp->{'h'};
+	    #now push component into component array	
 	    push @sof0_comp, $comp;
     	    die("illegal quant table\n") if $tq > 3;
             die("illegal h/v\n") if $comp->{'h'} > 3 || $comp->{'v'} > 3;
@@ -245,16 +250,17 @@ while ($comp_count < $ns) {
 my ($ss, $se, $ahal) = unpack("CCC", substr($jpg, 0, 3, ''));
 die("not sequential baseline jpg\n") unless $ss == 0 && $se == 63 && $ahal == 0;
 
+# set $mcz_sze_v and mcu_size_h dynamically. Should be 8 with 444/Gray and 16 with 411
 my $mcu_size_v = $max_v * 8;
 my $mcu_size_h = $max_h * 8;
 
 #modified by mstrigl: Loop through scan_arr and start decode or every component.
-my @image_z;      # output image, unclamped
-my @image_z1;      # output image, unclamped
-my @image_z2;      # output image, unclamped
-my @image_z3;      # output image, unclamped
-my @image_cb;
-my @image_cr;
+my @image_y1;      # output image layer y1 --> for Grayscale/444 and 411
+my @image_y2;      # output image layer y2 --> only for 411
+my @image_y3;      # output image layer y3 --> only for 411
+my @image_y4;      # output image layer y4 --> only for 411
+my @image_cb;  	   # output image layer cb --> only for 444 and 411
+my @image_cr;  	   # output image layer cr --> only for 444 and 411
 my $mcusx = int(($width + $mcu_size_v - 1) / $mcu_size_v);
 my $mcusy = int(($height + $mcu_size_h - 1 ) / $mcu_size_h);
 	# convert data into bitstream, undo byte stuffing
@@ -271,10 +277,10 @@ my $mcusy = int(($height + $mcu_size_h - 1 ) / $mcu_size_h);
 						for my $v_comp (1 .. $scancomp->{'v'}) {
     							my $dct1 = [ decode_scancomp($jpg, $scancomp) ];
 							if ($scancomp->{"cid"} == 1) {
-								set_image(\@image_z, $mx * 8, $my * 8, $nextline, $dct1) if ($h_comp == 1 && $v_comp == 1);
-								set_image(\@image_z1, $mx * 8, $my * 8, $nextline, $dct1) if ($h_comp == 2 && $v_comp == 1);
-								set_image(\@image_z2, $mx * 8, $my * 8, $nextline, $dct1) if ($h_comp == 1 && $v_comp == 2);
-								set_image(\@image_z3, $mx * 8, $my * 8, $nextline, $dct1) if ($h_comp == 2 && $v_comp == 2);
+								set_image(\@image_y1, $mx * 8, $my * 8, $nextline, $dct1) if ($h_comp == 1 && $v_comp == 1);
+								set_image(\@image_y2, $mx * 8, $my * 8, $nextline, $dct1) if ($h_comp == 2 && $v_comp == 1);
+								set_image(\@image_y3, $mx * 8, $my * 8, $nextline, $dct1) if ($h_comp == 1 && $v_comp == 2);
+								set_image(\@image_y4, $mx * 8, $my * 8, $nextline, $dct1) if ($h_comp == 2 && $v_comp == 2);
 								 
 							}
 							if ($scancomp->{"cid"} == 2) { set_image(\@image_cb, $mx * 8, $my * 8, $nextline, $dct1); };
@@ -285,14 +291,17 @@ my $mcusy = int(($height + $mcu_size_h - 1 ) / $mcu_size_h);
   		}
 	}
 
+# If more than one component is present it must be a colour picture. Different PNM start. 
 if ($ncomp > 1) {
 	printf "P3\n%d %d\n255\n", $width, $height;
 
 	for my $y (0..($height-1)) {
                	for my $x (0..($width-1)) {
-		        my $z = int($image_z[$y * $mcusx * 8 + $x]);	
+			#
+		        my $z = int($image_y1[$y * $mcusx * 8 + $x]);	
 			my $cb = int($image_cb[$y * $mcusx * 8 + $x]);
 			my $cr = int($image_cr[$y * $mcusx * 8 + $x]);
+			# Do the YCbCr to RGB conversion
  	     		my $r =  int($z + 1.402 * ($cr - 128));
        			$r = 0 if $r < 0;
        			$r = 255 if $r > 255;
@@ -302,7 +311,7 @@ if ($ncomp > 1) {
        			my $b = int($z + 1.772 * ($cb - 128));
        			$b = 0 if $b < 0;
        			$b = 255 if $b > 255;
-
+			# and print ...
 			print $r . " " . $g . " " . $b . "\n";
 		}
 	}
@@ -311,7 +320,7 @@ if ($ncomp > 1) {
 	printf "P2\n%d %d\n255\n", $width, $height;
 	for my $y (0..($height-1)) {
   		for my $x (0..($width-1)) {
-    			my $v = int($image_z[$y * $mcusx * 8 + $x]);
+    			my $v = int($image_y1[$y * $mcusx * 8 + $x]);
     			$v = 0 if $v < 0;
     			$v = 255 if $v > 255;
     			print "$v\n";
