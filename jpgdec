@@ -291,6 +291,7 @@ my $mcusy = int(($height + $mcu_size_h - 1 ) / $mcu_size_h);
   		}
 	}
 
+
 # If more than one component is present it must be a colour picture. Different PNM start. 
 if ($ncomp > 1) {
 	printf "P3\n%d %d\n255\n", $width, $height;
@@ -298,9 +299,9 @@ if ($ncomp > 1) {
 	for my $y (0..($height-1)) {
                	for my $x (0..($width-1)) {
 			#
-		        my $z = int($image_y1[$y * $mcusx * 8 + $x]);	
-			my $cb = int($image_cb[$y * $mcusx * 8 + $x]);
-			my $cr = int($image_cr[$y * $mcusx * 8 + $x]);
+		        my $z = int($image_y1[$y * $mcusx * 8 + ($x / $max_v)]);	
+			my $cb = int($image_cb[$y * $mcusx * 8 + ($x / $max_v)]);
+			my $cr = int($image_cr[$y * $mcusx * 8  + ($x / $max_v)]);
 			# Do the YCbCr to RGB conversion
  	     		my $r =  int($z + 1.402 * ($cr - 128));
        			$r = 0 if $r < 0;
