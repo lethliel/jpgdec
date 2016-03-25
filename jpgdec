@@ -255,10 +255,7 @@ my $mcu_size_v = $max_v * 8;
 my $mcu_size_h = $max_h * 8;
 
 #modified by mstrigl: Loop through scan_arr and start decode or every component.
-my @image_y1;      # output image layer y1 --> for Grayscale/444 and 411
-my @image_y2;      # output image layer y2 --> only for 411
-my @image_y3;      # output image layer y3 --> only for 411
-my @image_y4;      # output image layer y4 --> only for 411
+my @image_y1;      # output image layer y
 my @image_cb;  	   # output image layer cb --> only for 444 and 411
 my @image_cr;  	   # output image layer cr --> only for 444 and 411
 my $mcusx = int(($width + $mcu_size_v - 1) / $mcu_size_v);
@@ -273,15 +270,14 @@ my $mcusy = int(($height + $mcu_size_h - 1 ) / $mcu_size_h);
 	for my $my (0 .. ($mcusy - 1)) {
   		for my $mx (0 .. ($mcusx - 1)) {
 			foreach my $scancomp (@scan_arr) {
-					for my $h_comp (1 .. $scancomp->{'h'}) {
-						for my $v_comp (1 .. $scancomp->{'v'}) {
+					for my $v_comp (1 .. $scancomp->{'h'}) {
+						for my $h_comp (1 .. $scancomp->{'v'}) {
     							my $dct1 = [ decode_scancomp($jpg, $scancomp) ];
 							if ($scancomp->{"cid"} == 1) {
-								set_image(\@image_y1, $mx * 8, $my * 8, $nextline, $dct1) if ($h_comp == 1 && $v_comp == 1);
-								set_image(\@image_y2, $mx * 8, $my * 8, $nextline, $dct1) if ($h_comp == 2 && $v_comp == 1);
-								set_image(\@image_y3, $mx * 8, $my * 8, $nextline, $dct1) if ($h_comp == 1 && $v_comp == 2);
-								set_image(\@image_y4, $mx * 8, $my * 8, $nextline, $dct1) if ($h_comp == 2 && $v_comp == 2);
-								 
+								set_image(\@image_y1, $mx * 8 * $max_h, $my * 8 * $max_v, $nextline, $dct1) if ($h_comp == 1 && $v_comp == 1);
+    								set_image(\@image_y1, $mx * 8 * $max_h + 8, $my * 8 * $max_v,     $nextline, $dct1) if ($h_comp == 2 && $v_comp == 1);
+    								set_image(\@image_y1, $mx * 8 * $max_h,     $my * 8 * $max_v + 8, $nextline, $dct1) if ($h_comp == 1 && $v_comp == 2);
+    								set_image(\@image_y1, $mx * 8 * $max_h + 8, $my * 8 * $max_v + 8, $nextline, $dct1) if ($h_comp == 2 && $v_comp == 2);
 							}
 							if ($scancomp->{"cid"} == 2) { set_image(\@image_cb, $mx * 8, $my * 8, $nextline, $dct1); };
 							if ($scancomp->{"cid"} == 3) { set_image(\@image_cr, $mx * 8, $my * 8, $nextline, $dct1); };
@@ -299,9 +295,9 @@ if ($ncomp > 1) {
 	for my $y (0..($height-1)) {
                	for my $x (0..($width-1)) {
 			#
-		        my $z = int($image_y1[$y * $mcusx * 8 + ($x / $max_v)]);	
-			my $cb = int($image_cb[$y * $mcusx * 8 + ($x / $max_v)]);
-			my $cr = int($image_cr[$y * $mcusx * 8  + ($x / $max_v)]);
+			my $z = int($image_y1[$y * $nextline + $x]);
+			my $cb = int($image_cb[int($y / $max_v) * $nextline + ($x / $max_h)]);
+    			my $cr = int($image_cr[int($y / $max_v) * $nextline  + ($x / $max_h)]);
 			# Do the YCbCr to RGB conversion
  	     		my $r =  int($z + 1.402 * ($cr - 128));
        			$r = 0 if $r < 0;
